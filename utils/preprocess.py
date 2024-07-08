@@ -4,20 +4,20 @@ def get_candidate_text(candidate: Dict, document_tokens: List[Dict]) -> str:
     tokens = document_tokens[candidate['start_token']:candidate['end_token']]
     return ' '.join(token['token'] for token in tokens if not token['html_token']) + '\n'
 
-def process_dataset(dataset: List[Dict]) -> tuple[Dict[str, str], List[Dict]]:
-    chunk_dict = {}
-    questions = []
+def process_dataset(dataset: List[Dict]) -> Dict[str, Dict]:
+    processed_data = {
+        "chunks": {},
+        "questions": []
+    }
     
-    for i, element in enumerate(dataset):
-        start_index = len(chunk_dict)
-        
+    for i, element in enumerate(dataset):        
         # Extract chunks
         new_chunks = {
             f"{i}.{j}": get_candidate_text(candidate, element['document_tokens'])
             for j, candidate in enumerate(element['long_answer_candidates'])
             if candidate['top_level']
         }
-        chunk_dict.update(new_chunks)
+        processed_data["chunks"].update(new_chunks)
         
         # Process annotations
         chunk_ids = {
@@ -26,12 +26,12 @@ def process_dataset(dataset: List[Dict]) -> tuple[Dict[str, str], List[Dict]]:
             if annotation['long_answer']['candidate_index'] != -1
         }
         
-        questions.append({
+        processed_data["questions"].append({
             "question": element['question_text'],
             "chunk_ids": list(chunk_ids)
         })
     
-    return chunk_dict, questions
+    return processed_data
 
 
 if __name__ == "__main__":
@@ -43,8 +43,7 @@ if __name__ == "__main__":
             data = json.loads(line)
             dataset.append(data)
 
-    chunk_dict, questions = process_dataset(dataset)
+    processed_data = process_dataset(dataset)
 
     #Save preprocessed dataset
-    json.dump(chunk_dict, open('processed_data/text_corpus.json', 'w'),  indent=2)
-    json.dump(questions, open('processed_data/questions_corpus.json', 'w'), indent=2)
+    json.dump(processed_data, open('processed_data/evaluation_dataset.json', 'w'),  indent=2)

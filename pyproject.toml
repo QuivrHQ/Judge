@@ -7,6 +7,9 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"
+llama-index = "^0.10.52"
+llama-index-postprocessor-cohere-rerank = "^0.1.7"
+matplotlib = "^3.9.1"
 
 
 [tool.poetry.group.dev.dependencies]
