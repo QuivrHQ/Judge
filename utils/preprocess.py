@@ -37,7 +37,7 @@ def process_dataset_simple(dataset: List[Dict]) -> Dict[str, Dict]:
     
     return processed_data
 
-def extract_one(data: Dict, texts: List[Document], article_id: int) -> Dict:
+def extract_one(data: Dict, texts: List[str], article_id: int) -> Dict:
     idx = 0
     chunks: Dict[str, str] = {}
     long_answers = [el["long_answer"] for el in data["annotations"]]
@@ -55,7 +55,7 @@ def extract_one(data: Dict, texts: List[Document], article_id: int) -> Dict:
 
     for text in texts:
         chunk_id = f"{article_id}.{len(chunks)}"
-        content = text.page_content
+        content = text
         new_content = []
 
         tokens = re.split(r'(\s+|(?:<[^>]*>))', content)
@@ -81,7 +81,7 @@ def extract_one(data: Dict, texts: List[Document], article_id: int) -> Dict:
         "chunks": chunks
     }
 
-def process_dataset(dataset: List[Dict], text_list: List[List[Document]]) -> Dict:
+def process_dataset(dataset: List[Dict], text_list: List[List[str]]) -> Dict:
     processed_data = {
         "chunks": {},
         "questions": []

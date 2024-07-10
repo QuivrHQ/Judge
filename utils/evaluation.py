@@ -1,6 +1,7 @@
 from typing import List, Dict
+from utils.type import QuestionFormat
 
-def evaluate_retrieval(ground_truth: List[Dict], selected_chunk_ids: List[Dict]) -> Dict[str, float]:
+def evaluate_retrieval(ground_truth: List[QuestionFormat], selected_chunk_ids: List[QuestionFormat]) -> Dict[str, float]:
     """
     Evaluate the performance of a retrieval system.
 
@@ -23,8 +24,8 @@ def evaluate_retrieval(ground_truth: List[Dict], selected_chunk_ids: List[Dict])
     average_precisions = []
 
     # Create dictionaries for easier lookup
-    gt_dict = {item['question']: set(item['chunk_ids']) for item in ground_truth}
-    selected_dict = {item['question']: item['chunk_ids'] for item in selected_chunk_ids}
+    gt_dict = {item.question: set(item.chunk_ids) for item in ground_truth}
+    selected_dict = {item.question: item.chunk_ids for item in selected_chunk_ids}
 
     for question, true_chunks in gt_dict.items():
         if question not in selected_dict:

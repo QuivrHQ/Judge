@@ -12,6 +12,8 @@ llama-index-postprocessor-cohere-rerank = "^0.1.7"
 matplotlib = "^3.9.1"
 langchain = "^0.2.7"
 langchain-text-splitters = "^0.2.2"
+datasets = "^2.20.0"
+pytest = "^8.2.2"
 
 
 [tool.poetry.group.dev.dependencies]
