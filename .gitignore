@@ -1,3 +1,9 @@
 test.ipynb
 dev-sample.jsonl
 .env
+dev-sample.jsonl.gz
+Pipfile
+poetry.lock
+*.png
+*.pyc
+.DS_Store

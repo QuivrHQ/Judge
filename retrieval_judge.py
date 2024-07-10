@@ -25,6 +25,7 @@ def is_url(string: str) -> bool:
 class RetrievalJudge:
     def __init__(self, source: str | None= None):
         self.data = ResultFormat(chunks={}, questions= []) # Default data format
+        self.googleNQ = None
 
         if source is None:
             # Load from Hugging Face if no source is provided
@@ -72,8 +73,9 @@ class RetrievalJudge:
 
     def set_chunks(self, chunks: List[List[str]]) -> ResultFormat:
         # Recompute the evaluation DS with ground truth ids and returns new test file
-        dataset = self.get_googleNQ()
-        data = process_dataset(dataset, chunks)
+        if not self.googleNQ:
+            self.googleNQ = self.get_googleNQ()
+        data = process_dataset(self.googleNQ, chunks)
         self.data = ResultFormat(**data)
         return self.data
 
@@ -83,8 +85,9 @@ class RetrievalJudge:
 
     def get_googleNQ(self):
         #if document dev-saùple.jsonl.gz does not exist, download it
-        if not os.path.exists("dev-sample.jsonl.gz"):     
-            url = "https://storage.cloud.google.com/natural_questions/v1.0-simplified/nq-dev-all.jsonl.gz"
+        if not os.path.exists("dev-sample.jsonl.gz"):   
+            print("Downloading dataset, this can take a minute ...")  
+            url = "https://storage.googleapis.com/natural_questions/v1.0/sample/nq-dev-sample.jsonl.gz"
             response = requests.get(url)
             if response.status_code != 200:
                 raise Exception(f"Failed to download dataset. Status code: {response.status_code}")
@@ -95,13 +98,25 @@ class RetrievalJudge:
             print("Dataset downloaded successfully.")
 
         # Unzip and read the content
+        print("Unzipping NQ dataset, this can take a few seconds ...")  
+
         json_data = []
         with gzip.open("dev-sample.jsonl.gz", "rt", encoding="utf-8") as f:
             for line in f:
                 json_data.append(json.loads(line.strip()))
         
         print(f"Processed {len(json_data)} JSON lines.")
-        return json_data
+        self.googleNQ = json_data
+        return self.googleNQ
+
+    def get_NQ_dataset_pages(self):
+        if not self.googleNQ:
+            self.googleNQ = self.get_googleNQ()
+        page_list = []
+        for page in self.googleNQ:
+            all_text: str = " ".join([el["token"] if not el["html_token"] else f'{el["token"]} \n' for el in page["document_tokens"]])
+            page_list.append(all_text)
+        return page_list
 
     def get_questions(self):
         if isinstance(self.data, ResultFormat):
