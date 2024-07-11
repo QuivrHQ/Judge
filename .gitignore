@@ -7,3 +7,5 @@ poetry.lock
 *.png
 *.pyc
 .DS_Store
+*.txt
+processed_data/evaluation_dataset.jsonl

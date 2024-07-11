@@ -1,57 +1,34 @@
+import seaborn as sns
 import matplotlib.pyplot as plt
-import numpy as np
+import pandas as pd
 
-def plot_retrieval_comparison(without_reranker: dict, with_reranker: dict, save_path: str | None = None):
-    """
-    Create a bar plot comparing MAP and Recall between evaluations with and without a reranker.
+def plot_mean_recall(mean_recall_results : list[dict[str, float]]):
+    # Prepare data for plotting
 
-    Args:
-    without_reranker (dict): Evaluation results without reranker
-    with_reranker (dict): Evaluation results with reranker
-    save_path (str, optional): Path to save the plot. If None, the plot will be displayed instead.
+    # Create a DataFrame for Seaborn
+    data_list = []
+    for result in mean_recall_results:
+        df = pd.DataFrame(list(result.items()), columns=['Key', 'Average Value'])
+        data_list.append(df)
 
-    Returns:
-    None
-    """
-    metrics = ['mean_average_precision', 'mean_recall']
-    x = np.arange(len(metrics))
-    width = 0.35
+    # Set the style and context for the plot
+    sns.set_style("whitegrid")
+    sns.set_context("talk")
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-    without_values = [without_reranker[m] for m in metrics]
-    with_values = [with_reranker[m] for m in metrics]
+    # Create the plot with a custom line color
+    plt.figure(figsize=(12, 8))
+    for i,df in enumerate(data_list):
+        sns.lineplot(data=df, x=df['Key'].astype(float), y='Average Value', marker='o', color=i)
+        # Annotate each point with its value
+        for i, row in df.iterrows():
+            plt.text(i, row['Average Value'] + 0.001, f'{row["Average Value"]:.4f}', 
+                    ha='center', va='bottom', fontsize=12, color='black')
 
-    rects1 = ax.bar(x - width/2, without_values, width, label='Without Reranker', color='skyblue')
-    rects2 = ax.bar(x + width/2, with_values, width, label='With Reranker', color='orange')
+    # Title and labels
+    plt.title("Average Values for Each Key", fontsize=16, weight='bold')
+    plt.xlabel("Keys", fontsize=14, weight='bold')
+    plt.ylabel("Average Value", fontsize=14, weight='bold')
 
-    ax.set_ylabel('Score')
-    ax.set_title('Comparison of Retrieval Metrics With and Without Reranker')
-    ax.set_xticks(x)
-    ax.set_xticklabels(['MAP', 'Recall'])
-    ax.legend()
 
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_visible(False)
-    ax.yaxis.grid(color='gray', linestyle='dashed', alpha=0.7)
-
-    def autolabel(rects):
-        """Attach a text label above each bar in *rects*, displaying its height."""
-        for rect in rects:
-            height = rect.get_height()
-            ax.annotate(f'{height:.3f}',
-                        xy=(rect.get_x() + rect.get_width() / 2, height),
-                        xytext=(0, 3),  # 3 points vertical offset
-                        textcoords="offset points",
-                        ha='center', va='bottom')
-
-    autolabel(rects1)
-    autolabel(rects2)
-
-    fig.tight_layout()
-
-    if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"Plot saved to {save_path}")
-    else:
-        plt.show()
+    # Show the plot
+    plt.show()

@@ -1,59 +1,81 @@
 from typing import List, Dict
-from utils.type import QuestionFormat
-
-def evaluate_retrieval(ground_truth: List[QuestionFormat], selected_chunk_ids: List[QuestionFormat]) -> Dict[str, float]:
-    """
-    Evaluate the performance of a retrieval system.
-
-    Args:
-    ground_truth: List[Dict]
-        Each dict contains:
-        - question: str
-        - chunk_ids: List[str] of relevant chunk ids
-    selected_chunk_ids: List[Dict]
-        Each dict contains:
-        - question: str
-        - chunk_ids: List[str] of selected chunk ids
-
-    Returns:
-    dict: A dictionary containing the evaluation metrics
-    """
-    precisions = []
-    recalls = []
-    f1_scores = []
-    average_precisions = []
-
-    # Create dictionaries for easier lookup
-    gt_dict = {item.question: set(item.chunk_ids) for item in ground_truth}
-    selected_dict = {item.question: item.chunk_ids for item in selected_chunk_ids}
-
-    for question, true_chunks in gt_dict.items():
-        if question not in selected_dict:
-            continue
-
-        selected_chunks = selected_dict[question]
-
-        # Calculate recall
-        recall = len(true_chunks & set(selected_chunks)) / len(true_chunks) if true_chunks else 0
-        recalls.append(recall)
-
+from utils.type import ReferenceType, ResultType
+import difflib
+import tqdm
+def find_longest_common_substring(answer, chunk):
+    # Create a SequenceMatcher object
+    matcher = difflib.SequenceMatcher(None, chunk, answer)
     
+    # Find the longest matching block
+    match = matcher.find_longest_match(0, len(chunk), 0, len(answer))
+    
+    return match.size / len(answer)
 
-        # Calculate average precision
-        avg_precision = 0
-        relevant_count = 0
-        for i, chunk_id in enumerate(selected_chunks, 1):
-            if chunk_id in true_chunks:
-                relevant_count += 1
-                avg_precision += relevant_count / i
-        avg_precision /= len(true_chunks) if true_chunks else 1
-        average_precisions.append(avg_precision)
+def compute_map_like_metric(results):
+    precision_at_k = {}
+    total_precision = 0
+    
+    # Calculate precision at each k
+    for k in range(1, len(results) + 1):
+        recall_at_k = results[f'top_{k}']
+        precision_at_k[k] = recall_at_k / k
+        total_precision += precision_at_k[k]
 
-    # Calculate mean metrics
-    mean_recall = sum(recalls) / len(recalls) if recalls else 0
-    mean_average_precision = sum(average_precisions) / len(average_precisions) if average_precisions else 0
+    # Calculate Average Precision (AP)
+    ap = total_precision / len(results)
 
-    return {
-        "mean_recall": mean_recall,
-        "mean_average_precision": mean_average_precision
-    }
+    return ap
+
+def evaluate_one_retrieval(response: list[str], ground_truth: ReferenceType): #FIXME precise typing
+    results = {}
+    text = ""
+
+    for i, chunk in enumerate(response):
+        text += chunk + " "
+        if ground_truth.short_answers:
+            results_short = []
+
+            for short_answer in ground_truth.short_answers:
+                match_len = find_longest_common_substring(short_answer.strip(), text)
+                results_short.append(match_len)
+
+            results[f"top_{i+1}"] = max(results_short)
+
+        elif len(ground_truth.long_answers) > 0:
+            results_long = []
+            for long_answer in ground_truth.long_answers:
+                match_len = find_longest_common_substring(long_answer, text)
+                results_long.append(match_len)
+            results[f"top_{i+1}"] = sum(results_long) / len(results_long)
+    
+    return results
+
+def evaluate_all_retrieval(responses: List[List[str]], ground_truths: List[ReferenceType]) -> ResultType:# -> tuple[None, None, None] | dict[str, Any]:
+    all_results = []
+    map_metrics = []
+
+    for response,elements in tqdm.tqdm(zip(responses, ground_truths),  total=len(responses)):
+        results = evaluate_one_retrieval(response, elements)
+        if results:
+            all_results.append(results)
+            map_metric = compute_map_like_metric(results)
+            map_metrics.append(map_metric)
+    
+    # Compute mean recall per k
+    if not all_results:
+        return ResultType(all_recall = [], mean_recall = {}, mean_map_metric= 0)
+
+    sum_recall = {}
+    for results in all_results:
+        for k, v in results.items():
+            if k not in sum_recall:
+                sum_recall[k] = 0
+            sum_recall[k] += v
+
+
+    mean_recall = {k: v / len(all_results) for k, v in sum_recall.items()}
+
+    # Compute mean average precision (MAP-like metric)
+    mean_map_metric = sum(map_metrics) / len(map_metrics)
+
+    return ResultType(**{"all_recall": all_results, "mean_recall": mean_recall, "mean_map_metric" : mean_map_metric})

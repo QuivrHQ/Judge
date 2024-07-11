@@ -2,11 +2,41 @@ from typing import List, Dict
 import re
 from langchain_core.documents.base import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+import json
+from utils.type import ReferenceType
+
+def write_jsonl(filename, data):
+    with open(filename, 'w') as file:
+        for item in data:
+            json_line = json.dumps(item.dict())
+            file.write(json_line + '\n')
 
 
 def get_candidate_text(candidate: Dict, document_tokens: List[Dict]) -> str:
     tokens = document_tokens[candidate['start_token']:candidate['end_token']]
     return ' '.join(token['token'] for token in tokens if not token['html_token']) + '\n'
+
+def preprocess_NQ(dataset):
+    processed_data = []
+    for article in dataset:
+        long_answers = set()
+        short_answers = []
+        for i, annotation in enumerate(article["annotations"]):
+            if annotation["long_answer"]["candidate_index"] == -1:
+                continue
+            long_answers.add(get_candidate_text(annotation["long_answer"], article['document_tokens']))
+            short_answers += [get_candidate_text(short_answer, article['document_tokens']) for short_answer in annotation["short_answers"]]
+
+        processed_data.append(
+            ReferenceType(**{
+            '_id': article["example_id"],
+            'text' : ' '.join(token['token'] + ('\n' if token['html_token'] else '') for token in article['document_tokens']),
+            'question': article["question_text"],
+            'long_answers': list(long_answers),
+            'short_answers': short_answers
+        }))
+    return processed_data
+
 
 def process_dataset_simple(dataset: List[Dict]) -> Dict[str, Dict]:
     processed_data = {
